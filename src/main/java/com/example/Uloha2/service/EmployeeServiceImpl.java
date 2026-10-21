@@ -2,9 +2,11 @@ package com.example.Uloha2.service;
 
 import com.example.Uloha2.dao.EmployeeDAO;
 import com.example.Uloha2.entity.Employee;
+import com.example.Uloha2.exception.EmailAlreadyExistsException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -28,6 +30,11 @@ public class EmployeeServiceImpl implements EmployeeService {
 
     @Override
     public Employee save(Employee employee) {
+        Optional<Employee> employeeWithEmail = employeeDAO.findByEmail(employee.getEmail());
+        if (employeeWithEmail.isPresent()
+                && !Objects.equals(employeeWithEmail.get().getId(), employee.getId())) {
+            throw new EmailAlreadyExistsException(employee.getEmail());
+        }
         return employeeDAO.save(employee);
     }
 

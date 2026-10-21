@@ -1,10 +1,13 @@
 package com.example.Uloha2.controller;
 
 import com.example.Uloha2.entity.Employee;
+import com.example.Uloha2.exception.ObjectNotFoundException;
+import com.example.Uloha2.response.ResponseFactory;
+import com.example.Uloha2.response.ResponseWrapper;
 import com.example.Uloha2.service.EmployeeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.HttpStatus;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,51 +26,54 @@ import java.util.List;
 public class EmployeeRestController {
 
     private final EmployeeService employeeService;
+    private final ResponseFactory response;
 
-    public EmployeeRestController(EmployeeService employeeService) {
+    public EmployeeRestController(EmployeeService employeeService, ResponseFactory response) {
         this.employeeService = employeeService;
+        this.response = response;
     }
 
     @GetMapping("/employees")
     @Operation(summary = "Získať všetkých zamestnancov")
-    public List<Employee> findAll() {
-        return employeeService.findAll();
+    public ResponseEntity<ResponseWrapper<List<Employee>>> findAll() {
+        return response.ok("Úspešne načítané", employeeService.findAll());
     }
 
     @GetMapping("/employees/{id}")
     @Operation(summary = "Získať zamestnanca podľa ID")
-    public ResponseEntity<Employee> findById(@PathVariable Integer id) {
+    public ResponseEntity<ResponseWrapper<Employee>> findById(@PathVariable Integer id) {
         return employeeService.findById(id)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .map(employee -> response.ok("Zamestnanec úspešne načítaný", employee))
+                .orElseThrow(() -> new ObjectNotFoundException("Zamestnanec", id));
     }
 
     @PostMapping("/employees")
     @Operation(summary = "Pridať nového zamestnanca")
-    public ResponseEntity<Employee> add(@RequestBody Employee employee) {
+    public ResponseEntity<ResponseWrapper<Employee>> add(@Valid @RequestBody Employee employee) {
         employee.setId(null);
-        return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.save(employee));
+        return response.created("Zamestnanec úspešne vytvorený", employeeService.save(employee));
     }
 
     @PutMapping("/employees/{id}")
     @Operation(summary = "Aktualizovať zamestnanca")
-    public ResponseEntity<Employee> update(@PathVariable Integer id, @RequestBody Employee employee) {
+    public ResponseEntity<ResponseWrapper<Employee>> update(
+            @PathVariable Integer id, @Valid @RequestBody Employee employee) {
         if (employeeService.findById(id).isEmpty()) {
-            return ResponseEntity.notFound().build();
+            throw new ObjectNotFoundException("Zamestnanec", id);
         }
 
         employee.setId(id);
-        return ResponseEntity.ok(employeeService.save(employee));
+        return response.ok("Zamestnanec úspešne aktualizovaný", employeeService.save(employee));
     }
 
     @DeleteMapping("/employees/{id}")
     @Operation(summary = "Zmazať zamestnanca")
-    public ResponseEntity<Void> delete(@PathVariable Integer id) {
+    public ResponseEntity<ResponseWrapper<Void>> delete(@PathVariable Integer id) {
         if (employeeService.findById(id).isEmpty()) {
-            return ResponseEntity.notFound().build();
+            throw new ObjectNotFoundException("Zamestnanec", id);
         }
 
         employeeService.deleteById(id);
-        return ResponseEntity.noContent().build();
+        return response.ok("Zamestnanec úspešne vymazaný");
     }
 }
